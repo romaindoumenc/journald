@@ -63,5 +63,10 @@ func (log Log) Dump(filename string) {
 	}
 
 	// Finally, go over fields for back pointers
+	for field, rec := range log.fieldmap {
+		fmt.Fprintf(gviz, "\"%s\" [shape=\"diamond\"];\n", field)
+		fmt.Fprintf(gviz, "\"%s\" -> \"%p\";\n", field, rec)
+	}
+
 	fmt.Fprintf(gviz, "}\n")
 }
