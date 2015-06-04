@@ -4,14 +4,7 @@
 
 package journald
 
-import (
-	"code.google.com/p/snappy-go/snappy"
-	"fmt"
-)
-
 const (
-	// minimum value size before the value get compressed
-	compressSwitch = 512
 	// maximum size before creating a new entry array
 	newArraySwitch = 1024
 	// maximum number of arrays before merging
@@ -23,7 +16,7 @@ const (
 func (log *Log) Append(ts int64, records map[string]string) {
 
 	// Append all records to the map
-	fmt.Println("Append records")
+	//fmt.Println("Append records")
 	log_records := make([]*Record, 0)
 	for field, value := range records {
 		log_record := log.append_record(field, value)
@@ -31,11 +24,11 @@ func (log *Log) Append(ts int64, records map[string]string) {
 	}
 
 	// Append entry to the LSM-style entries
-	fmt.Println("Append entry")
+	//fmt.Println("Append entry")
 	last_entry := log.append_entry(ts, log_records)
 
 	// Update pointers in record list
-	fmt.Println("Update pointers")
+	//fmt.Println("Update pointers")
 	for _, rc := range log_records {
 		if rc.entryArray != nil {
 			rc.entryArray = append(rc.entryArray, last_entry)
@@ -75,23 +68,10 @@ func (log *Log) append_record(field, value string) *Record {
 	}
 }
 
-func create_record(field, value string) *Record {
-	newRecord := Record{Field: field}
-	if len(value) > compressSwitch {
-		// TODO(rdo) get this one from a pool
-		cmpval := make([]byte, 12)
-		cmpval, _ = snappy.Encode(cmpval, []byte(value))
-		newRecord.cmpval = cmpval
-	} else {
-		newRecord.Value = value
-	}
-	return &newRecord
-}
-
 func (log *Log) append_entry(ts int64, records []*Record) *Entry {
 
 	// Check if we have enough room in the first array
-	if log.currentEntrySize > newArraySwitch {
+	if log.currentEntrySize >= newArraySwitch {
 		log.createEntryArray()
 	}
 

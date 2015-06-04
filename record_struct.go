@@ -4,6 +4,13 @@
 
 package journald
 
+import "code.google.com/p/snappy-go/snappy"
+
+const (
+	// minimum value size before the value get compressed
+	compressSwitch = 512
+)
+
 // A record is the base element to consider: it simply consists of a
 // field name (e.g. process id), and corresponding value (e.g. 1534).
 type Record struct {
@@ -15,6 +22,29 @@ type Record struct {
 	// Optimization: most of the time, one entry
 	entry      *Entry
 	entryArray []*Entry
+}
+
+func create_record(field, value string) *Record {
+	newRecord := Record{Field: field}
+	if len(value) > compressSwitch {
+		// TODO(rdo) get this one from a pool
+		cmpval := make([]byte, 12)
+		cmpval, _ = snappy.Encode(cmpval, []byte(value))
+		newRecord.cmpval = cmpval
+	} else {
+		newRecord.Value = value
+	}
+	return &newRecord
+}
+
+func (r Record) GetEntries() []*Entry {
+	if r.entry != nil {
+		ets := make([]*Entry, 1)
+		ets[0] = r.entry
+		return ets
+	} else {
+		return r.entryArray
+	}
 }
 
 // An entry is a group of records at the same time stamp
@@ -41,12 +71,12 @@ func NewLog() Log {
 	for i := 0; i < maxMergeSwitch; i++ {
 		bea = append(bea, nil)
 	}
-	return Log {
-		fieldmap: make(map[string]*Record),
-		recmap:make(map[string]*Record),
-		currentEntry:make([]Entry,newArraySwitch),
-		currentEntrySize:0,
-		backlogSize:0,
-		backlogEntryArrays:bea,
+	return Log{
+		fieldmap:           make(map[string]*Record),
+		recmap:             make(map[string]*Record),
+		currentEntry:       make([]Entry, newArraySwitch),
+		currentEntrySize:   0,
+		backlogSize:        0,
+		backlogEntryArrays: bea,
 	}
 }
