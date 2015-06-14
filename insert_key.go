@@ -88,7 +88,12 @@ func (log *Log) append_entry(ts int64, records []*Record) *Entry {
 		pos--
 	}
 	pos++
-	// TODO(rdo) copy the old array
+
+	// Copy the elements after the entry to insert
+	if pos < log.currentEntrySize {
+		copy(entry_array[pos + 1:log.currentEntrySize], entry_array[pos:log.currentEntrySize - 1])
+	}
+
 	entry_array[pos] = Entry{Timestamp: ts, Records: records}
 	log.currentEntrySize++
 
