@@ -88,6 +88,7 @@ func (log *Log) append_entry(ts int64, records []*Record) *Entry {
 		pos--
 	}
 	pos++
+	// TODO(rdo) copy the old array
 	entry_array[pos] = Entry{Timestamp: ts, Records: records}
 	log.currentEntrySize++
 
@@ -96,55 +97,54 @@ func (log *Log) append_entry(ts int64, records []*Record) *Entry {
 
 func (lsm *Log) createEntryArray() {
 
-	if lsm.backlogSize == maxMergeSwitch {
-		// We are out of arrays, merge the two smallest ones
+	if lsm.backlogSize < maxMergeSwitch {
 
-		// Select the two smallest, and remember their position
-		ai1 := 0
-		ai2 := 1
-		ary1 := lsm.backlogEntryArrays[ai1]
-		ary2 := lsm.backlogEntryArrays[ai2]
-		for i, ary := range lsm.backlogEntryArrays {
-			if len(ary) < len(ary1) {
-				ary1 = ary
-				ai1 = i
-				continue
-			}
-			if len(ary) < len(ary2) {
-				ary2 = ary
-				ai2 = i
-			}
-		}
+		// We still have space for insertion at the end of the array
+		lsm.backlogSize++
+		lsm.backlogEntryArrays[lsm.backlogSize-1] = make([]Entry, newArraySwitch)
+		lsm.currentEntry = lsm.backlogEntryArrays[lsm.backlogSize-1]
+		lsm.currentEntrySize = 0
 
-		// Merge them
-		new_ary := make([]Entry, len(ary1)+len(ary2))
-		var i1, i2 int
-		for npos := range new_ary {
-			if ary1[i1].Timestamp < ary2[i2].Timestamp {
-				new_ary[npos] = ary1[i1]
-				i1++
-			} else {
-				new_ary[npos] = ary2[i2]
-				i2++
-			}
-		}
-
-		// Replace them
-		lsm.backlogEntryArrays[ai1] = new_ary
-		lsm.backlogEntryArrays[ai2] = nil
-
-		lsm.backlogSize--
+		return
 	}
 
-	// Iterate over the arrays to find an empty spot, and insert
-	// the current array there
-	// TODO(rdo): we already know this from the previous operation
-	for i, a := range lsm.backlogEntryArrays {
-		if a == nil {
-			lsm.backlogEntryArrays[i] = lsm.currentEntry
+	// If w are out of arrays, merge the two smallest ones
+
+	// Select the two smallest, and remember their position
+	ai1 := 0
+	ai2 := 1
+	ary1 := lsm.backlogEntryArrays[ai1]
+	ary2 := lsm.backlogEntryArrays[ai2]
+	for i, ary := range lsm.backlogEntryArrays {
+		if len(ary) < len(ary1) {
+			ary1 = ary
+			ai1 = i
+			continue
+		}
+		if len(ary) < len(ary2) {
+			ary2 = ary
+			ai2 = i
 		}
 	}
 
-	lsm.currentEntry = make([]Entry, newArraySwitch)
+	// Merge them
+	new_ary := make([]Entry, len(ary1)+len(ary2))
+	var i1, i2 int
+	for npos := range new_ary {
+		if ary1[i1].Timestamp < ary2[i2].Timestamp {
+			new_ary[npos] = ary1[i1]
+			i1++
+		} else {
+			new_ary[npos] = ary2[i2]
+			i2++
+		}
+	}
+
+	// Replace them
+	lsm.backlogEntryArrays[ai1] = new_ary
+	lsm.backlogEntryArrays[ai2] = make([]Entry, newArraySwitch)
+
+	// Write to the newly created array
 	lsm.currentEntrySize = 0
+	lsm.currentEntry = lsm.backlogEntryArrays[ai2]
 }
