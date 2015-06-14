@@ -31,3 +31,25 @@ func TestAppRecord(t *testing.T) {
 
 // TODO(rdo) add test for appending records
 // TODO(rdo) add test for managing entry arrays
+func TestCreateEntryArray(t *testing.T) {
+	lg := NewLog()
+
+	// Test to add when space is available
+	lg.createEntryArray()
+
+	// Test if returns a shared reference to a free array in the
+	// backlog entries. No other element should be modified
+
+
+	// Test when two arrays need to be merged
+
+	// Test if a free array has been returned
+
+	// Test of the two smallest arrays have been chosen
+
+	// Test if the content of those arrays are kept, and the final
+	// array is still sorted
+
+	// Note: to test for same element, use a map[Entry]int with
+	// the int value counting how many elements
+}
