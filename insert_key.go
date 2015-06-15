@@ -4,6 +4,10 @@
 
 package journald
 
+import (
+	"fmt"
+)
+
 const (
 	// maximum size before creating a new entry array
 	newArraySwitch = 1024
@@ -91,7 +95,7 @@ func (log *Log) append_entry(ts int64, records []*Record) *Entry {
 
 	// Copy the elements after the entry to insert
 	if pos < log.currentEntrySize {
-		copy(entry_array[pos + 1:log.currentEntrySize], entry_array[pos:log.currentEntrySize - 1])
+		copy(entry_array[pos+1:log.currentEntrySize], entry_array[pos:log.currentEntrySize-1])
 	}
 
 	entry_array[pos] = Entry{Timestamp: ts, Records: records}
@@ -115,28 +119,32 @@ func (lsm *Log) createEntryArray() {
 
 	// If w are out of arrays, merge the two smallest ones
 
-	// Select the two smallest, and remember their position
-	ai1 := 0
-	ai2 := 1
-	ary1 := lsm.backlogEntryArrays[ai1]
-	ary2 := lsm.backlogEntryArrays[ai2]
-	for i, ary := range lsm.backlogEntryArrays {
+	// Select the two smallest arrays. This is easy since the
+	// algorithm will alway merge arrays to the lowest positions
+	// will be used first, and have the biggest arrays
+	ary1 := lsm.backlogEntryArrays[0]
+	var ai1, ai2 int
+	for i, ary := range lsm.backlogEntryArrays[1:] {
+		// Smaller array => use it
 		if len(ary) < len(ary1) {
+			ai1 = i + 1
 			ary1 = ary
-			ai1 = i
-			continue
-		}
-		if len(ary) < len(ary2) {
-			ary2 = ary
-			ai2 = i
+			break
 		}
 	}
+	if ai1 < len(lsm.backlogEntryArrays) - 1 {
+		ai2 = ai1 + 1
+	} else {
+		ai2 = 0
+	}
+	ary2 := lsm.backlogEntryArrays[ai2]
+	fmt.Println("Array Index", ai1, ai2)
 
 	// Merge them
 	new_ary := make([]Entry, len(ary1)+len(ary2))
 	var i1, i2 int
 	for npos := range new_ary {
-		if ary1[i1].Timestamp < ary2[i2].Timestamp {
+		if i2 >= len(ary2) || ary1[i1].Timestamp < ary2[i2].Timestamp {
 			new_ary[npos] = ary1[i1]
 			i1++
 		} else {
